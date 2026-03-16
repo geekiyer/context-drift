@@ -1,5 +1,8 @@
 # context-drift
 
+[![CI](https://github.com/geekiyer/context-drift/actions/workflows/ci.yml/badge.svg)](https://github.com/geekiyer/context-drift/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@geekiyer/context-drift)](https://www.npmjs.com/package/@geekiyer/context-drift)
+
 A CLI that checks whether your AI context files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.) still match reality.
 
 ## Why this exists
