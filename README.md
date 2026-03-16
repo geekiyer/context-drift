@@ -8,6 +8,10 @@ You write a `CLAUDE.md` once, maybe twice. Then the codebase moves on. Dependenc
 
 context-drift reads your context files, pulls out the concrete claims (paths, commands, dependency names, versions), and checks them against the repo. If something doesn't line up, it tells you.
 
+<p align="center">
+  <img src="demo.svg" alt="context-drift terminal output" width="820">
+</p>
+
 ## Install
 
 ```bash
