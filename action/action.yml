@@ -1,0 +1,22 @@
+name: "Context Drift Check"
+description: "Detect when AI context files (CLAUDE.md, AGENTS.md, .cursorrules, etc.) drift out of sync with your codebase"
+branding:
+  icon: "alert-triangle"
+  color: "yellow"
+
+inputs:
+  strict:
+    description: "Treat warnings as errors"
+    required: false
+    default: "false"
+  config:
+    description: "Path to .context-drift.yml config file"
+    required: false
+  path:
+    description: "Path to repository root"
+    required: false
+    default: "."
+
+runs:
+  using: "node20"
+  main: "index.js"

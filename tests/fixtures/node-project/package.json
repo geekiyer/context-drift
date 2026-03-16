@@ -1,0 +1,17 @@
+{
+  "name": "test-node-project",
+  "version": "1.0.0",
+  "dependencies": {
+    "hono": "^4.2.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint ."
+  }
+}

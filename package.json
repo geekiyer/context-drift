@@ -1,0 +1,53 @@
+{
+  "name": "context-drift",
+  "version": "0.1.0",
+  "description": "Detect when AI context files drift out of sync with your codebase",
+  "type": "module",
+  "bin": {
+    "context-drift": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "ai",
+    "context",
+    "drift",
+    "claude",
+    "cursor",
+    "copilot",
+    "lint",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.32.1",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "simple-git": "^3.33.0",
+    "unified": "^11.0.5",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.7",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^25.5.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
