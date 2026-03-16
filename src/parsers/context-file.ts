@@ -9,7 +9,6 @@ const KNOWN_PACKAGES: Record<string, string> = {
 	"react-dom": "react-dom",
 	"next.js": "next",
 	nextjs: "next",
-	next: "next",
 	vue: "vue",
 	angular: "angular",
 	svelte: "svelte",
@@ -17,7 +16,6 @@ const KNOWN_PACKAGES: Record<string, string> = {
 	fastify: "fastify",
 	hono: "hono",
 	koa: "koa",
-	nest: "@nestjs/core",
 	nestjs: "@nestjs/core",
 	typescript: "typescript",
 	tailwind: "tailwindcss",
@@ -53,7 +51,7 @@ const KNOWN_PACKAGES: Record<string, string> = {
 	pytorch: "torch",
 	tensorflow: "tensorflow",
 	gin: "github.com/gin-gonic/gin",
-	echo: "github.com/labstack/echo",
+	"echo-go": "github.com/labstack/echo",
 	actix: "actix-web",
 	tokio: "tokio",
 	serde: "serde",
@@ -213,6 +211,7 @@ function extractPathFromInline(
 		const firstWord = trimmed.split(/\s+/)[0];
 		if (COMMAND_RUNNERS.includes(firstWord)) return;
 		if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return;
+		if (!looksLikeFilesystemPath(trimmed)) return;
 
 		claims.push({
 			type: "path",
@@ -238,6 +237,7 @@ function extractPathsFromText(
 		if (path.length < 3) continue;
 		// Skip things that look like version ranges or URLs
 		if (/^\d/.test(path) && !path.includes("/src/")) continue;
+		if (!looksLikeFilesystemPath(path)) continue;
 
 		claims.push({
 			type: "path",
@@ -247,6 +247,50 @@ function extractPathsFromText(
 			file: fileName,
 		});
 	}
+}
+
+/**
+ * Heuristic to distinguish filesystem paths from prose with slashes.
+ * Accepts: src/components/, ./lib/utils.ts, ../config, lib/auth.ts, package.json
+ * Rejects: color/type/spacing, L/R, oz/ml, /log/feed (app routes), star/moon/dot
+ */
+function looksLikeFilesystemPath(text: string): boolean {
+	// Starts with ./ or ../ — almost certainly a path
+	if (text.startsWith("./") || text.startsWith("../")) return true;
+
+	// Has a file extension — likely a path
+	if (/\.[a-zA-Z]{1,10}$/.test(text)) return true;
+
+	// Starts with well-known directory prefixes
+	const pathPrefixes = [
+		"src/", "lib/", "dist/", "build/", "out/", "bin/",
+		"test/", "tests/", "spec/", "docs/", "doc/",
+		"config/", "configs/", "scripts/", "tools/",
+		"public/", "static/", "assets/", "resources/",
+		"app/", "apps/", "packages/", "pkg/",
+		"cmd/", "internal/", "vendor/", "node_modules/",
+		".github/", ".vscode/", ".idea/",
+	];
+	const lower = text.toLowerCase();
+	for (const prefix of pathPrefixes) {
+		if (lower.startsWith(prefix)) return true;
+	}
+
+	// Very short segments on both sides of / are usually abbreviations (L/R, oz/ml)
+	const segments = text.split("/").filter(Boolean);
+	if (segments.length > 0 && segments.every((s) => s.length <= 2)) return false;
+
+	// Too many segments with no file extension and no recognized prefix — likely prose
+	// e.g., "color/type/spacing", "feed/diaper/sleep/pump/growth/routine"
+	if (segments.length >= 3) return false;
+
+	// Two segments that look like plain words (letters, hyphens only) — likely prose not paths
+	if (segments.length === 2 && segments.every((s) => /^[a-z-]+$/i.test(s))) return false;
+
+	// Single bare word with no slash, extension, or prefix — not a path
+	if (segments.length <= 1 && !/\./.test(text)) return false;
+
+	return true;
 }
 
 function extractDepsFromText(
@@ -261,6 +305,9 @@ function extractDepsFromText(
 	while ((match = versionRegex.exec(text)) !== null) {
 		const name = match[1].toLowerCase();
 		const version = match[2].replace(/^v/, "");
+		// Only treat "Name <version>" as a dep if it's a known package or uses @ syntax
+		const isAtSyntax = match[0].includes("@");
+		if (!isAtSyntax && !KNOWN_PACKAGES[name]) continue;
 		const packageName = KNOWN_PACKAGES[name] || name;
 		claims.push({
 			type: "dependency",
