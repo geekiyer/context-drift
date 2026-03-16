@@ -1,12 +1,12 @@
 # context-drift
 
-A CLI and GitHub Action that detects when AI context files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.) drift out of sync with the actual codebase.
+A CLI and GitHub Action that checks whether your AI context files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.) still match reality.
 
-## The Problem
+## Why this exists
 
-AI coding agents rely on markdown context files to understand project conventions, stack, commands, and structure. These files are written once and rarely updated. Over time they silently rot — dependencies get upgraded, directories get renamed, scripts get removed — and the context file becomes a source of misinformation that actively degrades agent performance.
+You write a `CLAUDE.md` once, maybe twice. Then the codebase moves on. Dependencies get swapped, folders get renamed, scripts get deleted. Nobody updates the context file because nobody remembers it's there. Now your AI agent is confidently following stale instructions, and you're debugging the wrong thing for an hour before you realize the file lied.
 
-**context-drift** treats context files as verifiable claims about the repository and checks those claims against ground truth.
+context-drift reads your context files, pulls out the concrete claims (paths, commands, dependency names, versions), and checks them against the repo. If something doesn't line up, it tells you.
 
 ## Install
 
@@ -14,13 +14,13 @@ AI coding agents rely on markdown context files to understand project convention
 npm install -g context-drift
 ```
 
-Or run directly:
+Or just run it:
 
 ```bash
 npx context-drift scan
 ```
 
-## Quick Start
+## Usage
 
 ```bash
 # Scan the current repo
@@ -36,18 +36,18 @@ context-drift scan --strict
 context-drift init
 ```
 
-## Example Output
+## Example output
 
 ```
-context-drift v0.1.0 — 3 files scanned
+context-drift v0.1.0 -- 3 files scanned
 
 CLAUDE.md (last modified: 84 days ago, 217 commits since)
   ⚠  STALE_DEPENDENCY       Line 12: Claims "Express 4" but "express" not found in any manifest
-  ⚠  MISSING_PATH           Line 28: References "src/services/" — path not found
-  ✗  DEAD_COMMAND            Line 45: "npm run test:e2e" — script "test:e2e" not found in package.json
+  ⚠  MISSING_PATH           Line 28: References "src/services/" -- path not found
+  ✗  DEAD_COMMAND            Line 45: "npm run test:e2e" -- script "test:e2e" not found in package.json
 
 AGENTS.md
-  ⚠  CROSS_FILE_CONFLICT    Line 8: Line 8 vs CLAUDE.md:45 — different test commands
+  ⚠  CROSS_FILE_CONFLICT    Line 8: Line 8 vs CLAUDE.md:45 -- different test commands
 
 .cursorrules
   ✓  No issues detected
@@ -55,11 +55,11 @@ AGENTS.md
 Summary: 3 warnings, 1 error across 3 files
 ```
 
-## What It Checks
+## What it checks
 
 ### Staleness
 
-Compares each context file's last-modified date against git history. Reports calendar age and number of commits since the file was last touched.
+How old is the file? How many commits have landed since it was last touched?
 
 | Threshold | Warning | Error |
 |-----------|---------|-------|
@@ -68,33 +68,33 @@ Compares each context file's last-modified date against git history. Reports cal
 
 ### Dependencies
 
-Extracts dependency and stack claims from context files (e.g. "uses React 18", "Express backend") and compares against manifest files:
+Pulls dependency claims out of context files ("uses React 18", "Express backend") and checks them against your manifest:
 
-- `package.json` (Node)
-- `requirements.txt` / `pyproject.toml` / `Pipfile` (Python)
-- `go.mod` (Go)
-- `Cargo.toml` (Rust)
+- `package.json`
+- `requirements.txt` / `pyproject.toml` / `Pipfile`
+- `go.mod`
+- `Cargo.toml`
 
-Flags missing packages and major version mismatches.
+Reports missing packages and major version mismatches.
 
 ### Paths
 
-Extracts filesystem path references (e.g. `` `src/components/` ``, `` `lib/utils.ts` ``) and verifies they exist in the repo.
+Finds path references like `` `src/components/` `` or `` `lib/utils.ts` `` and checks whether they exist.
 
 ### Commands
 
-Extracts CLI commands (e.g. `` `npm run test:e2e` ``, `` `make build` ``) and verifies:
+Finds CLI commands like `` `npm run test:e2e` `` or `` `make build` `` and checks:
 
 - npm/yarn/pnpm scripts exist in `package.json`
 - make targets exist in `Makefile`
 
-### Cross-File Consistency
+### Cross-file conflicts
 
-When multiple context files exist, detects contradictory claims — different test commands, conflicting stack versions, etc.
+When you have multiple context files, context-drift compares them against each other. If `CLAUDE.md` says the test command is `npm test` and `AGENTS.md` says it's `yarn test`, that's a conflict.
 
-## Supported Context Files
+## Supported context files
 
-Scanned automatically if present at the repo root:
+These are scanned automatically if they exist at the repo root:
 
 - `CLAUDE.md`
 - `AGENTS.md`
@@ -103,26 +103,26 @@ Scanned automatically if present at the repo root:
 - `.windsurfrules`
 - `GEMINI.md`
 
-Additional files can be added via configuration.
+You can add more in the config.
 
 ## Configuration
 
-Create a `.context-drift.yml` in your repo root (or run `context-drift init`):
+Create `.context-drift.yml` in your repo root, or run `context-drift init`:
 
 ```yaml
-# Additional context files to scan
+# Extra context files to scan
 files:
   - docs/AI_CONTEXT.md
   - .claude/project-notes.md
 
-# Override staleness thresholds
+# Staleness thresholds
 staleness:
   warn_days: 30
   warn_commits: 50
   error_days: 90
   error_commits: 200
 
-# Ignore specific checks
+# Suppress specific findings
 ignore:
   - code: STALE_DEPENDENCY
     file: CLAUDE.md
@@ -134,24 +134,24 @@ ignore:
 strict: false
 ```
 
-## CLI Reference
+## CLI reference
 
 ```
-context-drift scan [path]         # Scan repo at path (default: cwd)
-context-drift scan --format json  # Machine-readable output
-context-drift scan --format github # GitHub Actions annotations
-context-drift scan --strict       # Treat warnings as errors (exit 1)
-context-drift init                # Generate a starter .context-drift.yml
-context-drift version             # Print version
+context-drift scan [path]          Scan repo at path (default: cwd)
+context-drift scan --format json   Machine-readable output
+context-drift scan --format github GitHub Actions annotations
+context-drift scan --strict        Treat warnings as errors (exit 1)
+context-drift init                 Generate a starter .context-drift.yml
+context-drift version              Print version
 ```
 
-### Exit Codes
+### Exit codes
 
 | Code | Meaning |
 |------|---------|
-| `0`  | No errors (warnings allowed unless `--strict`) |
-| `1`  | One or more errors found |
-| `2`  | Configuration or runtime error |
+| `0`  | Clean (warnings are allowed unless `--strict`) |
+| `1`  | Errors found |
+| `2`  | Bad config or runtime failure |
 
 ## GitHub Action
 
@@ -165,14 +165,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # needed for git history
+          fetch-depth: 0  # full history needed
       - uses: context-drift/context-drift-action@v1
         with:
           strict: false
           config: .context-drift.yml  # optional
 ```
 
-The action posts annotations on specific lines of context files that have drifted.
+The action annotates the specific lines that have drifted, right on the PR.
 
 ## Programmatic API
 
