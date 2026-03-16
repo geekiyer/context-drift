@@ -1,14 +1,19 @@
-import { describe, it, expect } from "vitest";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { checkCrossFile } from "../../src/checkers/cross-file.js";
-import { parseContextFile } from "../../src/parsers/context-file.js";
 import type { CheckerContext, Config } from "../../src/checkers/types.js";
+import { parseContextFile } from "../../src/parsers/context-file.js";
 
 const FIXTURES = join(import.meta.dirname, "../fixtures");
 
 const defaultConfig: Config = {
 	files: [],
-	staleness: { warnDays: 30, warnCommits: 50, errorDays: 90, errorCommits: 200 },
+	staleness: {
+		warnDays: 30,
+		warnCommits: 50,
+		errorDays: 90,
+		errorCommits: 200,
+	},
 	ignore: [],
 	strict: false,
 };

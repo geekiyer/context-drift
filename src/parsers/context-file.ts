@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { unified } from "unified";
+import type { Code, InlineCode, ListItem, Root, Text } from "mdast";
 import remarkParse from "remark-parse";
-import type { Root, Code, InlineCode, Text, ListItem } from "mdast";
+import { unified } from "unified";
 import type { Claim } from "../checkers/types.js";
 
 const KNOWN_PACKAGES: Record<string, string> = {
@@ -77,8 +77,10 @@ const COMMAND_RUNNERS = [
 	"bun",
 ];
 
-const PATH_PATTERN = /(?:^|\s|`)([a-zA-Z0-9_.][a-zA-Z0-9_.\-/]*\/[a-zA-Z0-9_.\-/]*)`?/g;
-const DEP_VERSION_PATTERN = /\b([a-zA-Z][\w.-]*?)(?:@|[ ])(v?\d+(?:\.\d+)*(?:\.\d+)?)\b/g;
+const PATH_PATTERN =
+	/(?:^|\s|`)([a-zA-Z0-9_.][a-zA-Z0-9_.\-/]*\/[a-zA-Z0-9_.\-/]*)`?/g;
+const DEP_VERSION_PATTERN =
+	/\b([a-zA-Z][\w.-]*?)(?:@|[ ])(v?\d+(?:\.\d+)*(?:\.\d+)?)\b/g;
 const DEP_NAME_PATTERN = new RegExp(
 	`\\b(${Object.keys(KNOWN_PACKAGES).join("|")})\\b`,
 	"gi",
@@ -94,7 +96,12 @@ export function parseContextFile(filePath: string, fileName: string): Claim[] {
 	return deduplicateClaims(claims);
 }
 
-function walkTree(node: Root, fileName: string, lines: string[], claims: Claim[]): void {
+function walkTree(
+	node: Root,
+	fileName: string,
+	lines: string[],
+	claims: Claim[],
+): void {
 	visitNodes(node, fileName, lines, claims);
 }
 
@@ -207,7 +214,11 @@ function extractPathFromInline(
 	claims: Claim[],
 ): void {
 	const trimmed = text.trim();
-	if (trimmed.includes("/") && !trimmed.includes(" ") && /^[a-zA-Z0-9_.\-/]+$/.test(trimmed)) {
+	if (
+		trimmed.includes("/") &&
+		!trimmed.includes(" ") &&
+		/^[a-zA-Z0-9_.\-/]+$/.test(trimmed)
+	) {
 		const firstWord = trimmed.split(/\s+/)[0];
 		if (COMMAND_RUNNERS.includes(firstWord)) return;
 		if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return;
@@ -230,8 +241,7 @@ function extractPathsFromText(
 	claims: Claim[],
 ): void {
 	const regex = new RegExp(PATH_PATTERN.source, "g");
-	let match: RegExpExecArray | null;
-	while ((match = regex.exec(text)) !== null) {
+	for (const match of text.matchAll(regex)) {
 		const path = match[1].replace(/\/+$/, "");
 		if (path.startsWith("http://") || path.startsWith("https://")) continue;
 		if (path.length < 3) continue;
@@ -263,13 +273,36 @@ function looksLikeFilesystemPath(text: string): boolean {
 
 	// Starts with well-known directory prefixes
 	const pathPrefixes = [
-		"src/", "lib/", "dist/", "build/", "out/", "bin/",
-		"test/", "tests/", "spec/", "docs/", "doc/",
-		"config/", "configs/", "scripts/", "tools/",
-		"public/", "static/", "assets/", "resources/",
-		"app/", "apps/", "packages/", "pkg/",
-		"cmd/", "internal/", "vendor/", "node_modules/",
-		".github/", ".vscode/", ".idea/",
+		"src/",
+		"lib/",
+		"dist/",
+		"build/",
+		"out/",
+		"bin/",
+		"test/",
+		"tests/",
+		"spec/",
+		"docs/",
+		"doc/",
+		"config/",
+		"configs/",
+		"scripts/",
+		"tools/",
+		"public/",
+		"static/",
+		"assets/",
+		"resources/",
+		"app/",
+		"apps/",
+		"packages/",
+		"pkg/",
+		"cmd/",
+		"internal/",
+		"vendor/",
+		"node_modules/",
+		".github/",
+		".vscode/",
+		".idea/",
 	];
 	const lower = text.toLowerCase();
 	for (const prefix of pathPrefixes) {
@@ -285,7 +318,8 @@ function looksLikeFilesystemPath(text: string): boolean {
 	if (segments.length >= 3) return false;
 
 	// Two segments that look like plain words (letters, hyphens only) — likely prose not paths
-	if (segments.length === 2 && segments.every((s) => /^[a-z-]+$/i.test(s))) return false;
+	if (segments.length === 2 && segments.every((s) => /^[a-z-]+$/i.test(s)))
+		return false;
 
 	// Single bare word with no slash, extension, or prefix — not a path
 	if (segments.length <= 1 && !/\./.test(text)) return false;
@@ -301,8 +335,7 @@ function extractDepsFromText(
 ): void {
 	// Match versioned deps like "express@4", "React 18.2"
 	const versionRegex = new RegExp(DEP_VERSION_PATTERN.source, "g");
-	let match: RegExpExecArray | null;
-	while ((match = versionRegex.exec(text)) !== null) {
+	for (const match of text.matchAll(versionRegex)) {
 		const name = match[1].toLowerCase();
 		const version = match[2].replace(/^v/, "");
 		// Only treat "Name <version>" as a dep if it's a known package or uses @ syntax
@@ -321,11 +354,16 @@ function extractDepsFromText(
 
 	// Match unversioned known package names
 	const nameRegex = new RegExp(DEP_NAME_PATTERN.source, "gi");
-	while ((match = nameRegex.exec(text)) !== null) {
+	for (const match of text.matchAll(nameRegex)) {
 		const name = match[1].toLowerCase();
 		const packageName = KNOWN_PACKAGES[name] || name;
 		// Only add if not already captured with a version
-		if (!claims.some((c) => c.type === "dependency" && c.value === packageName && c.line === line)) {
+		if (
+			!claims.some(
+				(c) =>
+					c.type === "dependency" && c.value === packageName && c.line === line,
+			)
+		) {
 			claims.push({
 				type: "dependency",
 				raw: match[0],

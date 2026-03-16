@@ -1,12 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { CheckResult, CheckerContext } from "./types.js";
 import type { PackageJsonManifest } from "../parsers/package-json.js";
+import type { CheckerContext, CheckResult } from "./types.js";
 
 export function checkCommands(context: CheckerContext): CheckResult[] {
 	const results: CheckResult[] = [];
 	const commandClaims = context.claims.filter((c) => c.type === "command");
-	const pkgManifest = context.manifests.get("package-json") as PackageJsonManifest | undefined;
+	const pkgManifest = context.manifests.get("package-json") as
+		| PackageJsonManifest
+		| undefined;
 	const makeTargets = parseMakefileTargets(context.repoRoot);
 
 	for (const claim of commandClaims) {
@@ -35,16 +37,66 @@ export function checkCommands(context: CheckerContext): CheckResult[] {
 		if (npmShortMatch) {
 			const subcmd = npmShortMatch[1];
 			const builtins = [
-				"install", "i", "ci", "add", "remove", "rm", "uninstall",
-				"update", "up", "init", "publish", "pack", "link",
-				"audit", "outdated", "ls", "list", "exec", "dlx",
-				"create", "config", "set", "get", "cache", "rebuild",
-				"prune", "dedupe", "why", "bin", "root", "prefix",
-				"version", "view", "info", "search", "login", "logout",
-				"whoami", "token", "team", "access", "owner", "deprecate",
-				"star", "stars", "ping", "doctor", "explore", "fund",
-				"org", "hook", "dist-tag", "shrinkwrap", "completion",
-				"help", "start", "stop", "restart", "test", "t",
+				"install",
+				"i",
+				"ci",
+				"add",
+				"remove",
+				"rm",
+				"uninstall",
+				"update",
+				"up",
+				"init",
+				"publish",
+				"pack",
+				"link",
+				"audit",
+				"outdated",
+				"ls",
+				"list",
+				"exec",
+				"dlx",
+				"create",
+				"config",
+				"set",
+				"get",
+				"cache",
+				"rebuild",
+				"prune",
+				"dedupe",
+				"why",
+				"bin",
+				"root",
+				"prefix",
+				"version",
+				"view",
+				"info",
+				"search",
+				"login",
+				"logout",
+				"whoami",
+				"token",
+				"team",
+				"access",
+				"owner",
+				"deprecate",
+				"star",
+				"stars",
+				"ping",
+				"doctor",
+				"explore",
+				"fund",
+				"org",
+				"hook",
+				"dist-tag",
+				"shrinkwrap",
+				"completion",
+				"help",
+				"start",
+				"stop",
+				"restart",
+				"test",
+				"t",
 			];
 			if (!builtins.includes(subcmd)) {
 				// It might be a script shorthand (yarn/pnpm allow running scripts directly)

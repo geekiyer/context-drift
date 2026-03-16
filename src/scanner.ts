@@ -1,29 +1,29 @@
-import { join, dirname } from "node:path";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import simpleGit from "simple-git";
-import { loadConfig, discoverContextFiles } from "./config.js";
-import { parseContextFile } from "./parsers/context-file.js";
-import { parsePackageJson } from "./parsers/package-json.js";
-import { parsePythonManifests } from "./parsers/pyproject.js";
-import { parseGoMod } from "./parsers/go-mod.js";
-import { parseCargoToml } from "./parsers/cargo-toml.js";
-import { checkStaleness } from "./checkers/staleness.js";
-import { checkPaths } from "./checkers/path.js";
-import { checkCommands } from "./checkers/command.js";
-import { checkDependencies } from "./checkers/dependency.js";
-import { checkCrossFile } from "./checkers/cross-file.js";
-import { checkSemantic } from "./checkers/semantic.js";
 import { resolveProvider } from "./ai/provider.js";
+import { checkCommands } from "./checkers/command.js";
+import { checkCrossFile } from "./checkers/cross-file.js";
+import { checkDependencies } from "./checkers/dependency.js";
+import { checkPaths } from "./checkers/path.js";
+import { checkSemantic } from "./checkers/semantic.js";
+import { checkStaleness } from "./checkers/staleness.js";
 import type {
-	Config,
-	Claim,
-	CheckResult,
 	CheckerContext,
-	StalenessInfo,
+	CheckResult,
+	Claim,
+	Config,
 	FileResult,
 	ScanResult,
+	StalenessInfo,
 } from "./checkers/types.js";
+import { discoverContextFiles, loadConfig } from "./config.js";
+import { parseCargoToml } from "./parsers/cargo-toml.js";
+import { parseContextFile } from "./parsers/context-file.js";
+import { parseGoMod } from "./parsers/go-mod.js";
+import { parsePackageJson } from "./parsers/package-json.js";
+import { parsePythonManifests } from "./parsers/pyproject.js";
 
 function getVersion(): string {
 	try {
@@ -39,7 +39,10 @@ function getVersion(): string {
 
 const VERSION = getVersion();
 
-export async function scan(repoRoot: string, configOverrides?: Partial<Config>): Promise<ScanResult> {
+export async function scan(
+	repoRoot: string,
+	configOverrides?: Partial<Config>,
+): Promise<ScanResult> {
 	const config = { ...loadConfig(repoRoot), ...configOverrides };
 	const contextFiles = discoverContextFiles(repoRoot, config);
 
@@ -99,13 +102,22 @@ export async function scan(repoRoot: string, configOverrides?: Partial<Config>):
 
 	// Run AI semantic checker if enabled
 	if (config.ai.enabled) {
-		const provider = resolveProvider({ provider: config.ai.provider, model: config.ai.model });
-		const semanticIssues = await checkSemantic(checkerContext, provider, config.ai.model);
+		const provider = resolveProvider({
+			provider: config.ai.provider,
+			model: config.ai.model,
+		});
+		const semanticIssues = await checkSemantic(
+			checkerContext,
+			provider,
+			config.ai.model,
+		);
 		allIssues.push(...semanticIssues);
 	}
 
 	// Filter ignored issues
-	const filteredIssues = allIssues.filter((issue) => !isIgnored(issue, config.ignore));
+	const filteredIssues = allIssues.filter(
+		(issue) => !isIgnored(issue, config.ignore),
+	);
 
 	// Group results by file
 	const fileResults: FileResult[] = contextFiles.map((file) => ({
@@ -184,10 +196,7 @@ function computeDriftScore(
 	return Math.max(0, Math.min(100, score));
 }
 
-function isIgnored(
-	issue: CheckResult,
-	ignoreRules: Config["ignore"],
-): boolean {
+function isIgnored(issue: CheckResult, ignoreRules: Config["ignore"]): boolean {
 	return ignoreRules.some((rule) => {
 		if (rule.code !== issue.code) return false;
 		if (rule.file && rule.file !== issue.file) return false;

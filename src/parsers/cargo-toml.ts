@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface CargoManifest {
@@ -14,7 +14,9 @@ export function parseCargoToml(repoRoot: string): CargoManifest | null {
 	const deps = new Map<string, string>();
 
 	// Match [dependencies] and [dev-dependencies] sections
-	const sections = content.matchAll(/\[((?:dev-)?dependencies)\]\s*\n([\s\S]*?)(?=\n\[|$)/g);
+	const sections = content.matchAll(
+		/\[((?:dev-)?dependencies)\]\s*\n([\s\S]*?)(?=\n\[|$)/g,
+	);
 	for (const section of sections) {
 		const block = section[2];
 		for (const line of block.split("\n")) {

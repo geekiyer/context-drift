@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { ScanResult, FileResult, CheckResult } from "../checkers/types.js";
+import type { CheckResult, FileResult, ScanResult } from "../checkers/types.js";
 
 export function reportConsole(result: ScanResult): string {
 	const lines: string[] = [];
@@ -32,8 +32,12 @@ export function reportConsole(result: ScanResult): string {
 
 	const { errors, warnings } = result.summary;
 	const summaryParts: string[] = [];
-	if (warnings > 0) summaryParts.push(chalk.yellow(`${warnings} warning${warnings === 1 ? "" : "s"}`));
-	if (errors > 0) summaryParts.push(chalk.red(`${errors} error${errors === 1 ? "" : "s"}`));
+	if (warnings > 0)
+		summaryParts.push(
+			chalk.yellow(`${warnings} warning${warnings === 1 ? "" : "s"}`),
+		);
+	if (errors > 0)
+		summaryParts.push(chalk.red(`${errors} error${errors === 1 ? "" : "s"}`));
 
 	if (summaryParts.length === 0) {
 		lines.push(chalk.green("No issues found."));
@@ -44,7 +48,12 @@ export function reportConsole(result: ScanResult): string {
 	}
 
 	// Drift score
-	const scoreColor = result.score >= 80 ? chalk.green : result.score >= 50 ? chalk.yellow : chalk.red;
+	const scoreColor =
+		result.score >= 80
+			? chalk.green
+			: result.score >= 50
+				? chalk.yellow
+				: chalk.red;
 	lines.push(scoreColor(`\nDrift Score: ${result.score}/100`));
 
 	return lines.join("\n");

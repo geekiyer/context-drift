@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { scan } from "../src/scanner.js";
 
 const FIXTURES = join(import.meta.dirname, "fixtures");

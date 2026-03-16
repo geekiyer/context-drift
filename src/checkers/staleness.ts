@@ -1,4 +1,4 @@
-import type { CheckResult, CheckerContext } from "./types.js";
+import type { CheckerContext, CheckResult } from "./types.js";
 
 export function checkStaleness(context: CheckerContext): CheckResult[] {
 	const results: CheckResult[] = [];

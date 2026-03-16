@@ -1,7 +1,7 @@
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import type { Config, IgnoreRule } from "./checkers/types.js";
+import type { Config } from "./checkers/types.js";
 
 const DEFAULT_CONTEXT_FILES = [
 	"CLAUDE.md",
@@ -27,7 +27,11 @@ const DEFAULT_CONFIG: Config = {
 
 export function loadConfig(repoRoot: string): Config {
 	const configPath = join(repoRoot, ".context-drift.yml");
-	const config: Config = { ...DEFAULT_CONFIG, staleness: { ...DEFAULT_CONFIG.staleness }, ignore: [] };
+	const config: Config = {
+		...DEFAULT_CONFIG,
+		staleness: { ...DEFAULT_CONFIG.staleness },
+		ignore: [],
+	};
 
 	if (existsSync(configPath)) {
 		const raw = readFileSync(configPath, "utf-8");
@@ -39,9 +43,11 @@ export function loadConfig(repoRoot: string): Config {
 			if (parsed.staleness) {
 				const s = parsed.staleness;
 				if (s.warn_days != null) config.staleness.warnDays = s.warn_days;
-				if (s.warn_commits != null) config.staleness.warnCommits = s.warn_commits;
+				if (s.warn_commits != null)
+					config.staleness.warnCommits = s.warn_commits;
 				if (s.error_days != null) config.staleness.errorDays = s.error_days;
-				if (s.error_commits != null) config.staleness.errorCommits = s.error_commits;
+				if (s.error_commits != null)
+					config.staleness.errorCommits = s.error_commits;
 			}
 			if (Array.isArray(parsed.ignore)) {
 				config.ignore = parsed.ignore.map((r: Record<string, unknown>) => ({
@@ -60,7 +66,10 @@ export function loadConfig(repoRoot: string): Config {
 	return config;
 }
 
-export function discoverContextFiles(repoRoot: string, config: Config): string[] {
+export function discoverContextFiles(
+	repoRoot: string,
+	config: Config,
+): string[] {
 	const candidates = [...DEFAULT_CONTEXT_FILES, ...config.files];
 	return candidates.filter((f) => existsSync(join(repoRoot, f)));
 }

@@ -1,10 +1,13 @@
-import https from "node:https";
 import http from "node:http";
+import https from "node:https";
 import { URL } from "node:url";
 
 export interface AIProvider {
 	name: string;
-	chat(messages: { role: string; content: string }[], model?: string): Promise<string>;
+	chat(
+		messages: { role: string; content: string }[],
+		model?: string,
+	): Promise<string>;
 }
 
 interface AnthropicResponse {
@@ -19,7 +22,11 @@ interface OllamaResponse {
 	message: { content: string };
 }
 
-function httpPost(url: string, headers: Record<string, string>, body: string): Promise<string> {
+function httpPost(
+	url: string,
+	headers: Record<string, string>,
+	body: string,
+): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const parsed = new URL(url);
 		const isHttps = parsed.protocol === "https:";
@@ -67,7 +74,10 @@ function createAnthropicProvider(apiKey: string): AIProvider {
 				model,
 				max_tokens: 2048,
 				system: systemMsg?.content ?? "",
-				messages: userMessages.map((m) => ({ role: m.role, content: m.content })),
+				messages: userMessages.map((m) => ({
+					role: m.role,
+					content: m.content,
+				})),
 			});
 
 			const response = await httpPost(
@@ -118,11 +128,7 @@ function createOllamaProvider(baseUrl = "http://localhost:11434"): AIProvider {
 				stream: false,
 			});
 
-			const response = await httpPost(
-				`${baseUrl}/api/chat`,
-				{},
-				body,
-			);
+			const response = await httpPost(`${baseUrl}/api/chat`, {}, body);
 
 			const parsed: OllamaResponse = JSON.parse(response);
 			return parsed.message?.content ?? "";
@@ -138,15 +144,24 @@ export interface AIOptions {
 export function resolveProvider(options: AIOptions = {}): AIProvider {
 	const explicit = options.provider;
 
-	if (explicit === "anthropic" || (!explicit && process.env.ANTHROPIC_API_KEY)) {
+	if (
+		explicit === "anthropic" ||
+		(!explicit && process.env.ANTHROPIC_API_KEY)
+	) {
 		const key = process.env.ANTHROPIC_API_KEY;
-		if (!key) throw new Error("ANTHROPIC_API_KEY environment variable is required for Anthropic provider");
+		if (!key)
+			throw new Error(
+				"ANTHROPIC_API_KEY environment variable is required for Anthropic provider",
+			);
 		return createAnthropicProvider(key);
 	}
 
 	if (explicit === "openai" || (!explicit && process.env.OPENAI_API_KEY)) {
 		const key = process.env.OPENAI_API_KEY;
-		if (!key) throw new Error("OPENAI_API_KEY environment variable is required for OpenAI provider");
+		if (!key)
+			throw new Error(
+				"OPENAI_API_KEY environment variable is required for OpenAI provider",
+			);
 		return createOpenAIProvider(key);
 	}
 
@@ -155,5 +170,7 @@ export function resolveProvider(options: AIOptions = {}): AIProvider {
 		return createOllamaProvider(baseUrl);
 	}
 
-	throw new Error(`Unknown AI provider: "${explicit}". Supported: anthropic, openai, ollama`);
+	throw new Error(
+		`Unknown AI provider: "${explicit}". Supported: anthropic, openai, ollama`,
+	);
 }

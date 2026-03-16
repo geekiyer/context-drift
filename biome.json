@@ -1,15 +1,15 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": { "enabled": true },
-  "linter": {
-    "enabled": true,
-    "rules": { "recommended": true }
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "tab"
-  },
-  "files": {
-    "ignore": ["dist", "node_modules", "tests/fixtures"]
-  }
+	"$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"linter": {
+		"enabled": true,
+		"rules": { "recommended": true }
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"files": {
+		"includes": ["**", "!**/dist", "!**/node_modules", "!**/tests/fixtures"]
+	}
 }

@@ -1,15 +1,20 @@
-import { describe, it, expect } from "vitest";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { checkCommands } from "../../src/checkers/command.js";
+import type { CheckerContext, Config } from "../../src/checkers/types.js";
 import { parseContextFile } from "../../src/parsers/context-file.js";
 import { parsePackageJson } from "../../src/parsers/package-json.js";
-import type { CheckerContext, Config } from "../../src/checkers/types.js";
 
 const FIXTURES = join(import.meta.dirname, "../fixtures");
 
 const defaultConfig: Config = {
 	files: [],
-	staleness: { warnDays: 30, warnCommits: 50, errorDays: 90, errorCommits: 200 },
+	staleness: {
+		warnDays: 30,
+		warnCommits: 50,
+		errorDays: 90,
+		errorCommits: 200,
+	},
 	ignore: [],
 	strict: false,
 };
@@ -33,7 +38,11 @@ describe("checkCommands", () => {
 		const results = checkCommands(ctx);
 
 		// test:e2e doesn't exist in scripts
-		expect(results.some((r) => r.code === "DEAD_COMMAND" && r.message.includes("test:e2e"))).toBe(true);
+		expect(
+			results.some(
+				(r) => r.code === "DEAD_COMMAND" && r.message.includes("test:e2e"),
+			),
+		).toBe(true);
 	});
 
 	it("does not flag existing scripts", () => {
@@ -76,6 +85,10 @@ describe("checkCommands", () => {
 		const results = checkCommands(ctx);
 
 		// "pnpm format" — format script doesn't exist
-		expect(results.some((r) => r.code === "DEAD_COMMAND" && r.message.includes("format"))).toBe(true);
+		expect(
+			results.some(
+				(r) => r.code === "DEAD_COMMAND" && r.message.includes("format"),
+			),
+		).toBe(true);
 	});
 });

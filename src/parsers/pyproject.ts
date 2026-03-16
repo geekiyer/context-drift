@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface PythonManifest {
@@ -15,7 +15,8 @@ export function parsePythonManifests(repoRoot: string): PythonManifest | null {
 		const content = readFileSync(reqPath, "utf-8");
 		for (const line of content.split("\n")) {
 			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("-")) continue;
+			if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("-"))
+				continue;
 			const match = trimmed.match(/^([a-zA-Z0-9_.-]+)\s*(?:[><=!~]+\s*(.+))?/);
 			if (match) {
 				deps.set(match[1].toLowerCase(), match[2]?.trim() ?? "*");
@@ -27,13 +28,17 @@ export function parsePythonManifests(repoRoot: string): PythonManifest | null {
 	const pyprojectPath = join(repoRoot, "pyproject.toml");
 	if (existsSync(pyprojectPath)) {
 		const content = readFileSync(pyprojectPath, "utf-8");
-		const depsMatch = content.match(/\[project\][\s\S]*?dependencies\s*=\s*\[([\s\S]*?)\]/);
+		const depsMatch = content.match(
+			/\[project\][\s\S]*?dependencies\s*=\s*\[([\s\S]*?)\]/,
+		);
 		if (depsMatch) {
 			const depsBlock = depsMatch[1];
 			for (const line of depsBlock.split("\n")) {
 				const trimmed = line.trim().replace(/^["']|["'],?$/g, "");
 				if (!trimmed) continue;
-				const match = trimmed.match(/^([a-zA-Z0-9_.-]+)\s*(?:[><=!~]+\s*(.+))?/);
+				const match = trimmed.match(
+					/^([a-zA-Z0-9_.-]+)\s*(?:[><=!~]+\s*(.+))?/,
+				);
 				if (match) {
 					deps.set(match[1].toLowerCase(), match[2]?.trim() ?? "*");
 				}

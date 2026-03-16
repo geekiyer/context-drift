@@ -1,10 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { checkStaleness } from "../../src/checkers/staleness.js";
-import type { CheckerContext, Config, StalenessInfo } from "../../src/checkers/types.js";
+import type {
+	CheckerContext,
+	Config,
+	StalenessInfo,
+} from "../../src/checkers/types.js";
 
 const defaultConfig: Config = {
 	files: [],
-	staleness: { warnDays: 30, warnCommits: 50, errorDays: 90, errorCommits: 200 },
+	staleness: {
+		warnDays: 30,
+		warnCommits: 50,
+		errorDays: 90,
+		errorCommits: 200,
+	},
 	ignore: [],
 	strict: false,
 };

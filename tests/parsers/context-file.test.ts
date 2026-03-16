@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { parseContextFile } from "../../src/parsers/context-file.js";
 
 const FIXTURES = join(import.meta.dirname, "../fixtures");
@@ -40,7 +40,9 @@ describe("parseContextFile", () => {
 
 		expect(pathClaims.some((c) => c.value === "src/components")).toBe(true);
 		expect(pathClaims.some((c) => c.value === "src/services")).toBe(true);
-		expect(pathClaims.some((c) => c.value === "src/utils/helpers.ts")).toBe(true);
+		expect(pathClaims.some((c) => c.value === "src/utils/helpers.ts")).toBe(
+			true,
+		);
 		expect(pathClaims.some((c) => c.value === "src/nonexistent")).toBe(true);
 	});
 

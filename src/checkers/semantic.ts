@@ -1,8 +1,7 @@
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, relative, extname } from "node:path";
-import { globSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, join, relative } from "node:path";
 import type { AIProvider } from "../ai/provider.js";
-import type { CheckResult, CheckerContext } from "./types.js";
+import type { CheckerContext, CheckResult } from "./types.js";
 
 interface Section {
 	file: string;
@@ -60,7 +59,9 @@ function extractReferencedPaths(sectionContent: string): string[] {
 	const paths: string[] = [];
 
 	// Match backtick-wrapped paths with extensions: `src/foo.ts`, `app/_layout.tsx`
-	const backtickPaths = sectionContent.matchAll(/`([a-zA-Z0-9_.\-/]+\.[a-zA-Z]{1,10})`/g);
+	const backtickPaths = sectionContent.matchAll(
+		/`([a-zA-Z0-9_.\-/]+\.[a-zA-Z]{1,10})`/g,
+	);
 	for (const m of backtickPaths) {
 		paths.push(m[1]);
 	}
@@ -72,7 +73,9 @@ function extractReferencedPaths(sectionContent: string): string[] {
 	}
 
 	// Match tree-diagram file entries: ├── foo.tsx, └── bar.ts
-	const treeFiles = sectionContent.matchAll(/[├└]──\s+([a-zA-Z0-9_.\-/[\]]+\.[a-zA-Z]{1,10})/g);
+	const treeFiles = sectionContent.matchAll(
+		/[├└]──\s+([a-zA-Z0-9_.\-/[\]]+\.[a-zA-Z]{1,10})/g,
+	);
 	for (const m of treeFiles) {
 		paths.push(m[1]);
 	}
@@ -80,7 +83,7 @@ function extractReferencedPaths(sectionContent: string): string[] {
 	// Match tree-diagram directory entries: ├── components/, └── hooks/
 	const treeDirs = sectionContent.matchAll(/[├└]──\s+([a-zA-Z0-9_.\-/]+)\//g);
 	for (const m of treeDirs) {
-		paths.push(m[1] + "/");
+		paths.push(`${m[1]}/`);
 	}
 
 	return [...new Set(paths)];
@@ -91,7 +94,10 @@ function extractReferencedPaths(sectionContent: string): string[] {
  * and read their contents. For directories, list their files.
  * Returns a string of code context.
  */
-function gatherTargetedContext(repoRoot: string, referencedPaths: string[]): string {
+function gatherTargetedContext(
+	repoRoot: string,
+	referencedPaths: string[],
+): string {
 	const parts: string[] = [];
 	let totalChars = 0;
 	const charBudget = 30000; // keep context under ~8k tokens
@@ -118,7 +124,10 @@ function gatherTargetedContext(repoRoot: string, referencedPaths: string[]): str
 				const content = readFileSync(fullPath, "utf-8");
 				const fileLines = content.split("\n");
 				const preview = fileLines.slice(0, 100).join("\n");
-				const truncated = fileLines.length > 100 ? ` (first 100 of ${fileLines.length} lines)` : "";
+				const truncated =
+					fileLines.length > 100
+						? ` (first 100 of ${fileLines.length} lines)`
+						: "";
 				const chunk = `## ${refPath}${truncated}\n\`\`\`\n${preview}\n\`\`\``;
 				parts.push(chunk);
 				totalChars += chunk.length;
@@ -132,7 +141,10 @@ function gatherTargetedContext(repoRoot: string, referencedPaths: string[]): str
 					const fileLines = content.split("\n");
 					const preview = fileLines.slice(0, 100).join("\n");
 					const rel = relative(repoRoot, found);
-					const truncated = fileLines.length > 100 ? ` (first 100 of ${fileLines.length} lines)` : "";
+					const truncated =
+						fileLines.length > 100
+							? ` (first 100 of ${fileLines.length} lines)`
+							: "";
 					const chunk = `## ${rel}${truncated}\n\`\`\`\n${preview}\n\`\`\``;
 					parts.push(chunk);
 					totalChars += chunk.length;
@@ -152,7 +164,16 @@ function tryFindFile(repoRoot: string, partialPath: string): string | null {
 	// Only try for files with extensions (not directories)
 	if (!extname(partialPath)) return null;
 
-	const searchDirs = ["src", "app", "lib", "components", "hooks", "constants", "utils", ""];
+	const searchDirs = [
+		"src",
+		"app",
+		"lib",
+		"components",
+		"hooks",
+		"constants",
+		"utils",
+		"",
+	];
 	for (const dir of searchDirs) {
 		const candidate = join(repoRoot, dir, partialPath);
 		if (existsSync(candidate)) return candidate;
@@ -169,7 +190,7 @@ function gatherBaselineContext(repoRoot: string): string {
 
 	// Directory structure (3 levels deep for better coverage)
 	const dirSummary = collectDirStructure(repoRoot, 3);
-	parts.push("## Directory structure\n" + dirSummary);
+	parts.push(`## Directory structure\n${dirSummary}`);
 
 	// Package.json (full deps + scripts)
 	const pkgPath = join(repoRoot, "package.json");
@@ -219,12 +240,26 @@ function gatherBaselineContext(repoRoot: string): string {
 	return parts.join("\n\n");
 }
 
-function collectDirStructure(root: string, maxDepth: number, depth = 0, prefix = ""): string {
+function collectDirStructure(
+	root: string,
+	maxDepth: number,
+	depth = 0,
+	prefix = "",
+): string {
 	if (depth >= maxDepth) return "";
 	const lines: string[] = [];
 	const skipDirs = new Set([
-		"node_modules", "dist", "build", "out", "__pycache__",
-		".git", ".next", ".expo", "coverage", ".turbo", "target",
+		"node_modules",
+		"dist",
+		"build",
+		"out",
+		"__pycache__",
+		".git",
+		".next",
+		".expo",
+		"coverage",
+		".turbo",
+		"target",
 	]);
 	try {
 		const entries = readdirSync(root)
@@ -236,7 +271,9 @@ function collectDirStructure(root: string, maxDepth: number, depth = 0, prefix =
 				const stat = statSync(fullPath);
 				if (stat.isDirectory()) {
 					lines.push(`${prefix}${entry}/`);
-					lines.push(collectDirStructure(fullPath, maxDepth, depth + 1, prefix + "  "));
+					lines.push(
+						collectDirStructure(fullPath, maxDepth, depth + 1, `${prefix}  `),
+					);
 				} else {
 					lines.push(`${prefix}${entry}`);
 				}
@@ -291,9 +328,12 @@ export async function checkSemantic(
 		const sections = splitIntoSections(content, fileName);
 
 		// Skip sections that are too short or purely prescriptive (rules/guidelines)
-		const prescriptiveHeadings = /\b(rules|guidelines|conventions|instructions|style guide|do not|never|always|coding standards)\b/i;
+		const prescriptiveHeadings =
+			/\b(rules|guidelines|conventions|instructions|style guide|do not|never|always|coding standards)\b/i;
 		const substantiveSections = sections.filter((s) => {
-			const textLines = s.content.split("\n").filter((l) => l.trim().length > 0 && !l.startsWith("#"));
+			const textLines = s.content
+				.split("\n")
+				.filter((l) => l.trim().length > 0 && !l.startsWith("#"));
 			if (textLines.length < 2) return false;
 			// Skip sections that are purely rules/instructions (not verifiable claims)
 			if (prescriptiveHeadings.test(s.heading)) return false;
@@ -312,10 +352,15 @@ export async function checkSemantic(
 			for (const section of batch) {
 				allRefs.push(...extractReferencedPaths(section.content));
 			}
-			const targetedContext = gatherTargetedContext(context.repoRoot, [...new Set(allRefs)]);
+			const targetedContext = gatherTargetedContext(context.repoRoot, [
+				...new Set(allRefs),
+			]);
 
 			const sectionText = batch
-				.map((s) => `### "${s.heading}" (lines ${s.startLine}-${s.endLine})\n${s.content}`)
+				.map(
+					(s) =>
+						`### "${s.heading}" (lines ${s.startLine}-${s.endLine})\n${s.content}`,
+				)
 				.join("\n\n---\n\n");
 
 			const userPrompt = `# Repository baseline\n\n${baselineContext}\n\n# Relevant source files\n\n${targetedContext || "(no specific files referenced in this section)"}\n\n---\n\n# Sections from "${fileName}" to check (lines are 1-indexed from start of file)\n\n${sectionText}`;
@@ -355,7 +400,7 @@ function parseAIResponse(response: string, fileName: string): CheckResult[] {
 		if (!Array.isArray(issues)) return [];
 
 		// Filter out results where the model hedges, speculates, or contradicts itself
-		const lowConfidencePatterns = [
+		const _lowConfidencePatterns = [
 			// Model confirms the claim is correct
 			/matches the claim/i,
 			/claim is accurate/i,
@@ -399,7 +444,9 @@ function parseAIResponse(response: string, fileName: string): CheckResult[] {
 			.map((i: Record<string, unknown>) => ({
 				checker: "semantic",
 				code: "SEMANTIC_DRIFT",
-				severity: (i.severity === "error" ? "error" : "warning") as "error" | "warning",
+				severity: (i.severity === "error" ? "error" : "warning") as
+					| "error"
+					| "warning",
 				file: fileName,
 				line: typeof i.line === "number" ? i.line : undefined,
 				message: String(i.reality),

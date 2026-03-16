@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
-import { scan } from "../src/scanner.js";
 import { reportConsole } from "../src/reporters/console.js";
 import { reportGitHubAnnotations } from "../src/reporters/github-annotations.js";
+import { scan } from "../src/scanner.js";
 
 async function run() {
 	const strict = process.env.INPUT_STRICT === "true";

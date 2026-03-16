@@ -1,15 +1,15 @@
-export { scan } from "./scanner.js";
-export { loadConfig, discoverContextFiles } from "./config.js";
-export { parseContextFile } from "./parsers/context-file.js";
-export { reportConsole } from "./reporters/console.js";
-export { reportJson } from "./reporters/json.js";
-export { reportGitHubAnnotations } from "./reporters/github-annotations.js";
 export type {
-	Claim,
-	CheckResult,
 	CheckerContext,
+	CheckResult,
+	Claim,
 	Config,
-	ScanResult,
 	FileResult,
+	ScanResult,
 	StalenessInfo,
 } from "./checkers/types.js";
+export { discoverContextFiles, loadConfig } from "./config.js";
+export { parseContextFile } from "./parsers/context-file.js";
+export { reportConsole } from "./reporters/console.js";
+export { reportGitHubAnnotations } from "./reporters/github-annotations.js";
+export { reportJson } from "./reporters/json.js";
+export { scan } from "./scanner.js";

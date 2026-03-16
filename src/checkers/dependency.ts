@@ -1,10 +1,14 @@
-import type { CheckResult, CheckerContext, Claim } from "./types.js";
+import type { CargoManifest } from "../parsers/cargo-toml.js";
+import type { GoManifest } from "../parsers/go-mod.js";
 import type { PackageJsonManifest } from "../parsers/package-json.js";
 import type { PythonManifest } from "../parsers/pyproject.js";
-import type { GoManifest } from "../parsers/go-mod.js";
-import type { CargoManifest } from "../parsers/cargo-toml.js";
+import type { CheckerContext, CheckResult, Claim } from "./types.js";
 
-type AnyManifest = PackageJsonManifest | PythonManifest | GoManifest | CargoManifest;
+type AnyManifest =
+	| PackageJsonManifest
+	| PythonManifest
+	| GoManifest
+	| CargoManifest;
 
 export function checkDependencies(context: CheckerContext): CheckResult[] {
 	const results: CheckResult[] = [];
@@ -20,9 +24,7 @@ export function checkDependencies(context: CheckerContext): CheckResult[] {
 	return results;
 }
 
-function collectAllDeps(
-	manifests: Map<string, unknown>,
-): Map<string, string> {
+function collectAllDeps(manifests: Map<string, unknown>): Map<string, string> {
 	const allDeps = new Map<string, string>();
 
 	for (const manifest of manifests.values()) {
@@ -66,7 +68,11 @@ function checkClaim(
 		const claimedMajor = parseMajor(claim.version);
 		const actualMajor = parseMajor(cleanVersion(actualVersion));
 
-		if (claimedMajor !== null && actualMajor !== null && claimedMajor !== actualMajor) {
+		if (
+			claimedMajor !== null &&
+			actualMajor !== null &&
+			claimedMajor !== actualMajor
+		) {
 			return {
 				checker: "dependency",
 				code: "STALE_DEPENDENCY",

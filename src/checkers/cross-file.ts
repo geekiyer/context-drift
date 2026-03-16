@@ -1,4 +1,4 @@
-import type { Claim, CheckResult, CheckerContext } from "./types.js";
+import type { CheckerContext, CheckResult, Claim } from "./types.js";
 
 export function checkCrossFile(context: CheckerContext): CheckResult[] {
 	const results: CheckResult[] = [];
@@ -34,11 +34,15 @@ function checkConflictingCommands(
 
 	for (let i = 0; i < files.length; i++) {
 		for (let j = i + 1; j < files.length; j++) {
-			const fileAClaims = byFile.get(files[i])!;
-			const fileBClaims = byFile.get(files[j])!;
+			const fileAClaims = byFile.get(files[i]) ?? [];
+			const fileBClaims = byFile.get(files[j]) ?? [];
 
-			const fileACommands = new Set(fileAClaims.map((c) => normalizeCommand(c.value)));
-			const fileBCommands = new Set(fileBClaims.map((c) => normalizeCommand(c.value)));
+			const fileACommands = new Set(
+				fileAClaims.map((c) => normalizeCommand(c.value)),
+			);
+			const fileBCommands = new Set(
+				fileBClaims.map((c) => normalizeCommand(c.value)),
+			);
 
 			// Find commands in A not in B and vice versa
 			for (const claimA of fileAClaims) {
@@ -90,7 +94,8 @@ function checkConflictingDeps(claims: Claim[]): CheckResult[] {
 
 		const versions = new Map<string, Claim>();
 		for (const claim of pkgClaims) {
-			const existing = versions.get(claim.version!);
+			const ver = claim.version ?? "";
+			const existing = versions.get(ver);
 			if (existing && existing.file !== claim.file) {
 				results.push({
 					checker: "cross-file",
@@ -104,7 +109,7 @@ function checkConflictingDeps(claims: Claim[]): CheckResult[] {
 				});
 			}
 			if (!existing) {
-				versions.set(claim.version!, claim);
+				versions.set(ver, claim);
 			}
 		}
 	}
