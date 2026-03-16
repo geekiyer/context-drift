@@ -21,11 +21,21 @@ program
 	.option("--format <format>", "Output format: console, json, github", "console")
 	.option("--strict", "Treat warnings as errors (exit 1)")
 	.option("--config <path>", "Path to config file")
-	.action(async (path: string, options: { format: string; strict?: boolean; config?: string }) => {
+	.option("--ai", "Enable AI-powered semantic checks")
+	.option("--provider <provider>", "AI provider: anthropic, openai, ollama")
+	.option("--model <model>", "AI model to use (provider-specific)")
+	.action(async (path: string, options: { format: string; strict?: boolean; config?: string; ai?: boolean; provider?: string; model?: string }) => {
 		const repoRoot = resolve(path);
 		const configOverrides: Record<string, unknown> = {};
 		if (options.strict) {
 			configOverrides.strict = true;
+		}
+		if (options.ai) {
+			configOverrides.ai = {
+				enabled: true,
+				provider: options.provider,
+				model: options.model,
+			};
 		}
 
 		try {

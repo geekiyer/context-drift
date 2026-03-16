@@ -43,6 +43,10 @@ export function reportConsole(result: ScanResult): string {
 		);
 	}
 
+	// Drift score
+	const scoreColor = result.score >= 80 ? chalk.green : result.score >= 50 ? chalk.yellow : chalk.red;
+	lines.push(scoreColor(`\nDrift Score: ${result.score}/100`));
+
 	return lines.join("\n");
 }
 

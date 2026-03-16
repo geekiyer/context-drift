@@ -11,6 +11,8 @@ import { checkPaths } from "./checkers/path.js";
 import { checkCommands } from "./checkers/command.js";
 import { checkDependencies } from "./checkers/dependency.js";
 import { checkCrossFile } from "./checkers/cross-file.js";
+import { checkSemantic } from "./checkers/semantic.js";
+import { resolveProvider } from "./ai/provider.js";
 import type {
 	Config,
 	Claim,
@@ -33,6 +35,7 @@ export async function scan(repoRoot: string, configOverrides?: Partial<Config>):
 			filesScanned: 0,
 			results: [],
 			summary: { errors: 0, warnings: 0 },
+			score: 100,
 		};
 	}
 
@@ -71,7 +74,7 @@ export async function scan(repoRoot: string, configOverrides?: Partial<Config>):
 		config,
 	};
 
-	// Run all checkers
+	// Run all deterministic checkers
 	const allIssues: CheckResult[] = [
 		...checkStaleness(checkerContext),
 		...checkPaths(checkerContext),
@@ -79,6 +82,13 @@ export async function scan(repoRoot: string, configOverrides?: Partial<Config>):
 		...checkDependencies(checkerContext),
 		...checkCrossFile(checkerContext),
 	];
+
+	// Run AI semantic checker if enabled
+	if (config.ai.enabled) {
+		const provider = resolveProvider({ provider: config.ai.provider, model: config.ai.model });
+		const semanticIssues = await checkSemantic(checkerContext, provider, config.ai.model);
+		allIssues.push(...semanticIssues);
+	}
 
 	// Filter ignored issues
 	const filteredIssues = allIssues.filter((issue) => !isIgnored(issue, config.ignore));
@@ -95,11 +105,14 @@ export async function scan(repoRoot: string, configOverrides?: Partial<Config>):
 		warnings: filteredIssues.filter((i) => i.severity === "warning").length,
 	};
 
+	const score = computeDriftScore(summary, stalenessMap);
+
 	return {
 		version: VERSION,
 		filesScanned: contextFiles.length,
 		results: fileResults,
 		summary,
+		score,
 	};
 }
 
@@ -133,6 +146,28 @@ async function getStalenessInfo(
 	} catch {
 		return { lastModified: null, commitsSince: 0, daysSince: 0 };
 	}
+}
+
+function computeDriftScore(
+	summary: { errors: number; warnings: number },
+	staleness: Map<string, StalenessInfo>,
+): number {
+	let score = 100;
+
+	// Issue penalties
+	score -= summary.errors * 10;
+	score -= summary.warnings * 3;
+
+	// Staleness penalties per file
+	for (const info of staleness.values()) {
+		if (info.daysSince > 90) {
+			score -= 3;
+		} else if (info.daysSince > 30) {
+			score -= 1;
+		}
+	}
+
+	return Math.max(0, Math.min(100, score));
 }
 
 function isIgnored(

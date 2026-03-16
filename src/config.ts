@@ -22,6 +22,7 @@ const DEFAULT_CONFIG: Config = {
 	},
 	ignore: [],
 	strict: false,
+	ai: { enabled: false },
 };
 
 export function loadConfig(repoRoot: string): Config {

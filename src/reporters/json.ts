@@ -24,6 +24,7 @@ export function reportJson(result: ScanResult): string {
 			})),
 		})),
 		summary: result.summary,
+		score: result.score,
 	};
 
 	return JSON.stringify(output, null, 2);

@@ -32,6 +32,12 @@ export interface CheckerContext {
 	config: Config;
 }
 
+export interface AIConfig {
+	enabled: boolean;
+	provider?: string;
+	model?: string;
+}
+
 export interface Config {
 	files: string[];
 	staleness: {
@@ -42,6 +48,7 @@ export interface Config {
 	};
 	ignore: IgnoreRule[];
 	strict: boolean;
+	ai: AIConfig;
 }
 
 export interface IgnoreRule {
@@ -62,6 +69,7 @@ export interface ScanResult {
 	filesScanned: number;
 	results: FileResult[];
 	summary: { errors: number; warnings: number };
+	score: number;
 }
 
 export type Checker = (context: CheckerContext) => CheckResult[];
