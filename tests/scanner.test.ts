@@ -8,7 +8,7 @@ describe("scan", () => {
 	it("scans a node project and finds issues", async () => {
 		const result = await scan(join(FIXTURES, "node-project"));
 
-		expect(result.version).toBe("0.1.0");
+		expect(result.version).toMatch(/^\d+\.\d+\.\d+$/);
 		expect(result.filesScanned).toBe(1); // CLAUDE.md
 		expect(result.results).toHaveLength(1);
 

@@ -1,13 +1,27 @@
 import { Command } from "commander";
 import { resolve } from "node:path";
-import { writeFileSync, existsSync } from "node:fs";
+import { writeFileSync, existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { scan } from "./scanner.js";
 import { reportConsole } from "./reporters/console.js";
 import { reportJson } from "./reporters/json.js";
 import { reportGitHubAnnotations } from "./reporters/github-annotations.js";
 import { generateDefaultConfig } from "./config.js";
 
-const VERSION = "0.1.0";
+function getVersion(): string {
+	try {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const pkgPath = join(__dirname, "..", "package.json");
+		const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+		return pkg.version;
+	} catch {
+		return "0.0.0";
+	}
+}
+
+const VERSION = getVersion();
 
 const program = new Command()
 	.name("context-drift")

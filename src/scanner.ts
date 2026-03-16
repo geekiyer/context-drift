@@ -1,4 +1,6 @@
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import simpleGit from "simple-git";
 import { loadConfig, discoverContextFiles } from "./config.js";
 import { parseContextFile } from "./parsers/context-file.js";
@@ -23,7 +25,19 @@ import type {
 	ScanResult,
 } from "./checkers/types.js";
 
-const VERSION = "0.1.0";
+function getVersion(): string {
+	try {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const pkgPath = join(__dirname, "..", "package.json");
+		const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+		return pkg.version;
+	} catch {
+		return "0.0.0";
+	}
+}
+
+const VERSION = getVersion();
 
 export async function scan(repoRoot: string, configOverrides?: Partial<Config>): Promise<ScanResult> {
 	const config = { ...loadConfig(repoRoot), ...configOverrides };
