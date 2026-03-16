@@ -1,6 +1,6 @@
 {
   "name": "@geekiyer/context-drift",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Detect when AI context files drift out of sync with your codebase",
   "type": "module",
   "bin": {
