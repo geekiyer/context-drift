@@ -1,6 +1,6 @@
 # context-drift
 
-A CLI and GitHub Action that checks whether your AI context files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.) still match reality.
+A CLI that checks whether your AI context files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.) still match reality.
 
 ## Why this exists
 
@@ -11,13 +11,13 @@ context-drift reads your context files, pulls out the concrete claims (paths, co
 ## Install
 
 ```bash
-npm install -g context-drift
+npm install -g @geekiyer/context-drift
 ```
 
-Or just run it:
+Or just run it directly:
 
 ```bash
-npx context-drift scan
+npx @geekiyer/context-drift scan
 ```
 
 ## Usage
@@ -32,6 +32,9 @@ context-drift scan --format json
 # Treat warnings as errors
 context-drift scan --strict
 
+# Enable AI-powered semantic checks (see below)
+context-drift scan --ai
+
 # Generate a config file
 context-drift init
 ```
@@ -39,7 +42,7 @@ context-drift init
 ## Example output
 
 ```
-context-drift v0.1.0 -- 3 files scanned
+context-drift v0.1.3 -- 3 files scanned
 
 CLAUDE.md (last modified: 84 days ago, 217 commits since)
   ⚠  STALE_DEPENDENCY       Line 12: Claims "Express 4" but "express" not found in any manifest
@@ -53,48 +56,64 @@ AGENTS.md
   ✓  No issues detected
 
 Summary: 3 warnings, 1 error across 3 files
+
+Drift Score: 81/100
 ```
 
 ## What it checks
 
-### Staleness
+### Deterministic checks (no API key needed)
 
-How old is the file? How many commits have landed since it was last touched?
+**Staleness** -- How old is the file? How many commits have landed since it was last touched?
 
 | Threshold | Warning | Error |
 |-----------|---------|-------|
 | Days      | 30      | 90    |
 | Commits   | 50      | 200   |
 
-### Dependencies
+**Dependencies** -- Pulls dependency claims out of context files ("uses React 18", "Express backend") and checks them against your manifest (`package.json`, `requirements.txt`, `pyproject.toml`, `go.mod`, `Cargo.toml`). Reports missing packages and major version mismatches.
 
-Pulls dependency claims out of context files ("uses React 18", "Express backend") and checks them against your manifest:
+**Paths** -- Finds path references like `` `src/components/` `` or `` `lib/utils.ts` `` and checks whether they exist.
 
-- `package.json`
-- `requirements.txt` / `pyproject.toml` / `Pipfile`
-- `go.mod`
-- `Cargo.toml`
+**Commands** -- Finds CLI commands like `` `npm run test:e2e` `` or `` `make build` `` and verifies the scripts/targets actually exist.
 
-Reports missing packages and major version mismatches.
+**Cross-file conflicts** -- When you have multiple context files, context-drift compares them against each other. If `CLAUDE.md` says the test command is `npm test` and `AGENTS.md` says it's `yarn test`, that's a conflict.
 
-### Paths
+### AI semantic checks (`--ai`)
 
-Finds path references like `` `src/components/` `` or `` `lib/utils.ts` `` and checks whether they exist.
+Pass `--ai` to enable an LLM-powered pass that catches things deterministic checks can't: prose descriptions that no longer match the code, outdated architectural claims, stale convention descriptions.
 
-### Commands
+```bash
+# Auto-detects provider from env vars, falls back to Ollama
+context-drift scan --ai
 
-Finds CLI commands like `` `npm run test:e2e` `` or `` `make build` `` and checks:
+# Specify provider and model
+context-drift scan --ai --provider anthropic --model claude-haiku-4-5-20251001
+context-drift scan --ai --provider openai --model gpt-4o-mini
+context-drift scan --ai --provider ollama --model qwen2:7b
+```
 
-- npm/yarn/pnpm scripts exist in `package.json`
-- make targets exist in `Makefile`
+Provider resolution order when `--provider` is not specified:
+1. `ANTHROPIC_API_KEY` env var set -- uses Anthropic
+2. `OPENAI_API_KEY` env var set -- uses OpenAI
+3. Neither set -- falls back to Ollama (local, free, requires [Ollama](https://ollama.com) running)
 
-### Cross-file conflicts
+The semantic checker reads the actual source files referenced in each section of your context file and sends them alongside the claims to the LLM. It only flags things it can prove are wrong from the code -- not things it can't verify.
 
-When you have multiple context files, context-drift compares them against each other. If `CLAUDE.md` says the test command is `npm test` and `AGENTS.md` says it's `yarn test`, that's a conflict.
+### Drift score
+
+Every scan produces a 0-100 drift score. Starts at 100, deducts points for issues and staleness:
+
+- Each error: -10
+- Each warning: -3
+- File older than 30 days: -1
+- File older than 90 days: -3
+
+The score shows up in console output and is included in JSON output for tracking over time.
 
 ## Supported context files
 
-These are scanned automatically if they exist at the repo root:
+Scanned automatically if they exist at the repo root:
 
 - `CLAUDE.md`
 - `AGENTS.md`
@@ -137,12 +156,15 @@ strict: false
 ## CLI reference
 
 ```
-context-drift scan [path]          Scan repo at path (default: cwd)
-context-drift scan --format json   Machine-readable output
-context-drift scan --format github GitHub Actions annotations
-context-drift scan --strict        Treat warnings as errors (exit 1)
-context-drift init                 Generate a starter .context-drift.yml
-context-drift version              Print version
+context-drift scan [path]              Scan repo at path (default: cwd)
+context-drift scan --format json       Machine-readable output
+context-drift scan --format github     GitHub Actions annotations
+context-drift scan --strict            Treat warnings as errors (exit 1)
+context-drift scan --ai                Enable AI semantic checks
+context-drift scan --ai --provider X   AI provider: anthropic, openai, ollama
+context-drift scan --ai --model X      Model override (provider-specific)
+context-drift init                     Generate a starter .context-drift.yml
+context-drift version                  Print version
 ```
 
 ### Exit codes
@@ -177,9 +199,12 @@ The action annotates the specific lines that have drifted, right on the PR.
 ## Programmatic API
 
 ```typescript
-import { scan } from "context-drift";
+import { scan } from "@geekiyer/context-drift";
 
 const result = await scan("/path/to/repo");
+
+console.log(result.score);
+// 97
 
 console.log(result.summary);
 // { errors: 1, warnings: 3 }
@@ -190,6 +215,70 @@ for (const file of result.results) {
   }
 }
 ```
+
+## Development
+
+```bash
+git clone https://github.com/geekiyer/context-drift.git
+cd context-drift
+pnpm install
+pnpm build
+pnpm test
+```
+
+### Project structure
+
+```
+src/
+  cli.ts              CLI entry point (Commander)
+  scanner.ts          Orchestrator: discover files, parse, check, report
+  config.ts           .context-drift.yml loader
+  parsers/
+    context-file.ts   Markdown AST -> claims (deps, paths, commands)
+    package-json.ts   package.json reader
+    pyproject.ts       Python manifest reader
+    go-mod.ts          go.mod reader
+    cargo-toml.ts      Cargo.toml reader
+  checkers/
+    types.ts          Shared interfaces (Claim, CheckResult, Config, etc.)
+    staleness.ts      Git history age check
+    dependency.ts     Claimed deps vs manifest
+    path.ts           Claimed paths vs filesystem
+    command.ts        Claimed commands vs scripts/Makefile
+    cross-file.ts     Multi-file consistency
+    semantic.ts       AI-powered accuracy check
+  ai/
+    provider.ts       HTTP clients for Anthropic, OpenAI, Ollama
+  reporters/
+    console.ts        Colored terminal output
+    json.ts           JSON for CI
+    github-annotations.ts  GitHub Actions annotations
+tests/
+  fixtures/           Sample repos with intentionally drifted context files
+```
+
+### Running locally
+
+```bash
+# Build and run against any repo
+pnpm build
+node dist/cli.js scan /path/to/your/repo
+
+# Run with AI checks using local Ollama
+node dist/cli.js scan /path/to/your/repo --ai --provider ollama --model qwen2:7b
+
+# Watch mode for development
+pnpm dev
+```
+
+### Tech stack
+
+- TypeScript (ESM), built with tsup
+- Commander for CLI
+- unified/remark for markdown parsing
+- simple-git for git operations
+- Vitest for tests
+- Biome for linting
 
 ## License
 
