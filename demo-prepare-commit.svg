@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="480" viewBox="0 0 820 480">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap');
+      .term { font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace; font-size: 13px; }
+      .bold { font-weight: 700; }
+      .dim { fill: #888; }
+      .white { fill: #e0e0e0; }
+      .green { fill: #50fa7b; }
+      .yellow { fill: #f1fa8c; }
+      .red { fill: #ff5555; }
+      .cyan { fill: #8be9fd; }
+      .prompt { fill: #bd93f9; }
+      .blue { fill: #6272a4; }
+    </style>
+  </defs>
+  <!-- Background -->
+  <rect width="820" height="480" rx="10" fill="#282a36"/>
+  <!-- Title bar -->
+  <rect width="820" height="36" rx="10" fill="#21222c"/>
+  <rect y="26" width="820" height="10" fill="#21222c"/>
+  <circle cx="20" cy="18" r="6" fill="#ff5555"/>
+  <circle cx="40" cy="18" r="6" fill="#f1fa8c"/>
+  <circle cx="60" cy="18" r="6" fill="#50fa7b"/>
+  <text x="410" y="22" text-anchor="middle" class="term dim" font-size="12">context-drift — prepare/commit</text>
+
+  <!-- Terminal content -->
+  <g transform="translate(20, 56)">
+    <!-- Step 1: prepare -->
+    <text y="0" class="term blue bold">Step 1 — prepare prompts</text>
+
+    <text y="26" class="term prompt">$</text>
+    <text x="16" y="26" class="term white">context-drift prepare .</text>
+
+    <text y="52" class="term dim">[</text>
+    <text y="68" class="term dim">  {</text>
+    <text y="84" class="term dim">    "id": </text>
+    <text x="60" y="84" class="term green">"CLAUDE.md:batch-0"</text>
+    <text x="220" y="84" class="term dim">,</text>
+    <text y="100" class="term dim">    "messages": </text>
+    <text x="108" y="100" class="term green">[{role: "system", ...}, {role: "user", ...}]</text>
+    <text y="116" class="term dim">  }</text>
+    <text y="132" class="term dim">]</text>
+
+    <!-- Step 2: agent calls LLM -->
+    <text y="168" class="term blue bold">Step 2 — agent sends messages to its own LLM</text>
+
+    <text y="194" class="term dim">// Claude Code, Cursor, Copilot — whatever LLM you already have</text>
+    <text y="210" class="term dim">// No API key needed by context-drift</text>
+
+    <!-- Step 3: commit -->
+    <text y="246" class="term blue bold">Step 3 — commit results</text>
+
+    <text y="272" class="term prompt">$</text>
+    <text x="16" y="272" class="term white">echo '[{"id":"CLAUDE.md:batch-0","content":"[...]"}]' | context-drift commit</text>
+
+    <text y="304" class="term dim">[</text>
+    <text y="320" class="term dim">  {</text>
+    <text y="336" class="term dim">    "checker": </text>
+    <text x="98" y="336" class="term green">"semantic"</text>
+    <text x="178" y="336" class="term dim">,  "code": </text>
+    <text x="258" y="336" class="term red">"SEMANTIC_DRIFT"</text>
+    <text x="394" y="336" class="term dim">,</text>
+    <text y="352" class="term dim">    "file": </text>
+    <text x="76" y="352" class="term green">"CLAUDE.md"</text>
+    <text x="170" y="352" class="term dim">,  "line": </text>
+    <text x="240" y="352" class="term yellow">12</text>
+    <text x="254" y="352" class="term dim">,</text>
+    <text y="368" class="term dim">    "message": </text>
+    <text x="108" y="368" class="term white">"Claims Express but codebase uses Hono"</text>
+    <text y="384" class="term dim">  }</text>
+    <text y="400" class="term dim">]</text>
+  </g>
+</svg>
