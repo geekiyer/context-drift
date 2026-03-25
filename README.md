@@ -170,8 +170,25 @@ context-drift scan --strict            Treat warnings as errors (exit 1)
 context-drift scan --ai                Enable AI semantic checks
 context-drift scan --ai --provider X   AI provider: anthropic, openai, ollama
 context-drift scan --ai --model X      Model override (provider-specific)
+context-drift prepare [path]           Build LLM prompts (JSON to stdout)
+context-drift commit                   Process LLM responses (JSON from stdin)
 context-drift init                     Generate a starter .context-drift.yml
 context-drift version                  Print version
+```
+
+### Prepare/commit CLI workflow
+
+For agents that can shell out but don't import libraries directly (Claude Code, Cursor, etc.):
+
+```bash
+# Step 1: Get the prompts
+context-drift prepare /path/to/repo > requests.json
+
+# Step 2: Agent sends each request's messages to its LLM, builds responses.json
+# Each response: { "id": "CLAUDE.md:batch-0", "content": "<raw LLM text>" }
+
+# Step 3: Feed responses back
+cat responses.json | context-drift commit
 ```
 
 ### Exit codes
@@ -203,7 +220,49 @@ jobs:
 
 The action annotates the specific lines that have drifted, right on the PR.
 
+## MCP server
+
+context-drift ships an MCP server so AI agents can call `prepare` and `commit` as tools natively -- no shell piping needed.
+
+### Setup for Claude Code
+
+Add to `~/.claude/settings.json` (or project-level `.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "context-drift": {
+      "command": "context-drift-mcp"
+    }
+  }
+}
+```
+
+Or if installed locally (not globally):
+
+```json
+{
+  "mcpServers": {
+    "context-drift": {
+      "command": "npx",
+      "args": ["@geekiyer/context-drift-mcp"]
+    }
+  }
+}
+```
+
+### Available tools
+
+| Tool | Input | Output |
+|------|-------|--------|
+| `prepare` | `path` (optional, defaults to cwd) | Array of `SemanticCheckRequest` objects with ready-to-send LLM messages |
+| `commit` | `responses` (array of `{id, content}`) | Array of `CheckResult` objects |
+
+The agent calls `prepare` to get prompts, sends each prompt's `messages` to its own LLM, then calls `commit` with the responses to get structured drift results.
+
 ## Programmatic API
+
+### Basic scan
 
 ```typescript
 import { scan } from "@geekiyer/context-drift";
@@ -223,6 +282,36 @@ for (const file of result.results) {
 }
 ```
 
+### Prepare/commit workflow (bring your own LLM)
+
+If you're already running inside an AI agent (Claude Code, Cursor, Copilot, etc.), you don't need a separate API key. Use the prepare/commit API to let context-drift build the prompts and parse the results, while your agent handles the LLM call.
+
+```typescript
+import { scanPrepare, commitSemanticChecks } from "@geekiyer/context-drift";
+
+// Step 1: context-drift gathers context and builds prompts
+const requests = scanPrepare("/path/to/repo");
+
+// Step 2: Your agent makes the LLM calls
+const responses = await Promise.all(
+  requests.map(async (req) => ({
+    id: req.id,
+    content: await myAgent.chat(req.messages), // your LLM
+  }))
+);
+
+// Step 3: context-drift parses the results
+const issues = commitSemanticChecks(responses);
+```
+
+Each request in the array contains:
+- `id` -- unique identifier (e.g. `"CLAUDE.md:batch-0"`)
+- `file` -- which context file is being checked
+- `messages` -- ready-to-send `[{role, content}]` array
+- `metadata` -- line ranges and section headings for the batch
+
+For advanced use cases, the lower-level `prepareSemanticChecks(context)` is also exported if you need to build the `CheckerContext` yourself.
+
 ## Development
 
 ```bash
@@ -238,6 +327,7 @@ pnpm test
 ```
 src/
   cli.ts              CLI entry point (Commander)
+  mcp.ts              MCP server entry point (stdio transport)
   scanner.ts          Orchestrator: discover files, parse, check, report
   config.ts           .context-drift.yml loader
   parsers/

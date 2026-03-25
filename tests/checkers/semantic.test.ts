@@ -97,8 +97,7 @@ describe("commitSemanticChecks", () => {
 					{
 						line: 3,
 						claim: "Uses Express 4",
-						reality:
-							"package.json shows express@5.0.0, not Express 4",
+						reality: "package.json shows express@5.0.0, not Express 4",
 						severity: "error",
 					},
 				]),
@@ -162,7 +161,8 @@ describe("commitSemanticChecks", () => {
 					{
 						line: 5,
 						claim: "Uses TypeScript",
-						reality: "This aligns with the claim, package.json confirms TypeScript",
+						reality:
+							"This aligns with the claim, package.json confirms TypeScript",
 						severity: "warning",
 					},
 				]),

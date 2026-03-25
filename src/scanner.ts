@@ -7,7 +7,7 @@ import { checkCommands } from "./checkers/command.js";
 import { checkCrossFile } from "./checkers/cross-file.js";
 import { checkDependencies } from "./checkers/dependency.js";
 import { checkPaths } from "./checkers/path.js";
-import { checkSemantic } from "./checkers/semantic.js";
+import { checkSemantic, prepareSemanticChecks } from "./checkers/semantic.js";
 import { checkStaleness } from "./checkers/staleness.js";
 import type {
 	CheckerContext,
@@ -16,6 +16,7 @@ import type {
 	Config,
 	FileResult,
 	ScanResult,
+	SemanticCheckRequest,
 	StalenessInfo,
 } from "./checkers/types.js";
 import { discoverContextFiles, loadConfig } from "./config.js";
@@ -140,6 +141,48 @@ export async function scan(
 		summary,
 		score,
 	};
+}
+
+/**
+ * High-level helper for the prepare/commit workflow.
+ * Handles all setup (config, file discovery, claim parsing, manifests)
+ * and returns ready-to-send LLM prompt requests.
+ */
+export function scanPrepare(
+	repoRoot: string,
+	configOverrides?: Partial<Config>,
+): SemanticCheckRequest[] {
+	const config = { ...loadConfig(repoRoot), ...configOverrides };
+	const contextFiles = discoverContextFiles(repoRoot, config);
+
+	if (contextFiles.length === 0) return [];
+
+	const manifests = new Map<string, unknown>();
+	const pkgJson = parsePackageJson(repoRoot);
+	if (pkgJson) manifests.set("package-json", pkgJson);
+	const python = parsePythonManifests(repoRoot);
+	if (python) manifests.set("python", python);
+	const goMod = parseGoMod(repoRoot);
+	if (goMod) manifests.set("go", goMod);
+	const cargo = parseCargoToml(repoRoot);
+	if (cargo) manifests.set("cargo", cargo);
+
+	const allClaims: Claim[] = [];
+	for (const file of contextFiles) {
+		const filePath = join(repoRoot, file);
+		const claims = parseContextFile(filePath, file);
+		allClaims.push(...claims);
+	}
+
+	const checkerContext: CheckerContext = {
+		repoRoot,
+		claims: allClaims,
+		manifests,
+		staleness: new Map(),
+		config,
+	};
+
+	return prepareSemanticChecks(checkerContext);
 }
 
 async function getStalenessInfo(

@@ -2,11 +2,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import { commitSemanticChecks } from "./checkers/semantic.js";
 import { generateDefaultConfig } from "./config.js";
 import { reportConsole } from "./reporters/console.js";
 import { reportGitHubAnnotations } from "./reporters/github-annotations.js";
 import { reportJson } from "./reporters/json.js";
-import { scan } from "./scanner.js";
+import { scan, scanPrepare } from "./scanner.js";
 
 function getVersion(): string {
 	try {
@@ -117,6 +118,48 @@ program
 		}
 		writeFileSync(configPath, generateDefaultConfig());
 		console.log("Created .context-drift.yml");
+	});
+
+program
+	.command("prepare")
+	.description("Build LLM prompts for semantic checks (outputs JSON to stdout)")
+	.argument("[path]", "Path to repo root", ".")
+	.action((path: string) => {
+		try {
+			const repoRoot = resolve(path);
+			const requests = scanPrepare(repoRoot);
+			console.log(JSON.stringify(requests, null, 2));
+		} catch (err) {
+			console.error("Error:", err instanceof Error ? err.message : err);
+			process.exit(2);
+		}
+	});
+
+program
+	.command("commit")
+	.description(
+		"Process LLM responses into check results (reads JSON from stdin)",
+	)
+	.action(async () => {
+		try {
+			const chunks: Buffer[] = [];
+			for await (const chunk of process.stdin) {
+				chunks.push(chunk);
+			}
+			const input = Buffer.concat(chunks).toString();
+			const responses = JSON.parse(input);
+
+			if (!Array.isArray(responses)) {
+				console.error("Error: expected a JSON array of responses");
+				process.exit(2);
+			}
+
+			const results = commitSemanticChecks(responses);
+			console.log(JSON.stringify(results, null, 2));
+		} catch (err) {
+			console.error("Error:", err instanceof Error ? err.message : err);
+			process.exit(2);
+		}
 	});
 
 program.parse();

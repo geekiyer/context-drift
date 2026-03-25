@@ -14,4 +14,10 @@ export default defineConfig([
 		dts: true,
 		target: "node18",
 	},
+	{
+		entry: { mcp: "src/mcp.ts" },
+		format: ["esm"],
+		target: "node18",
+		banner: { js: "#!/usr/bin/env node" },
+	},
 ]);
