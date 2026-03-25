@@ -1,7 +1,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import type { AIProvider } from "../ai/provider.js";
-import type { CheckerContext, CheckResult } from "./types.js";
+import type {
+	CheckerContext,
+	CheckResult,
+	SemanticCheckRequest,
+	SemanticCheckResponse,
+} from "./types.js";
 
 interface Section {
 	file: string;
@@ -310,12 +315,15 @@ STRICT RULES — read every one carefully:
 
 Err heavily on the side of returning []. A false positive is worse than a missed issue.`;
 
-export async function checkSemantic(
+/**
+ * Phase 1: Gather context and build LLM prompts for semantic checking.
+ * Returns an array of requests, each containing the messages to send to an LLM.
+ * The caller is responsible for making the actual LLM calls.
+ */
+export function prepareSemanticChecks(
 	context: CheckerContext,
-	provider: AIProvider,
-	model?: string,
-): Promise<CheckResult[]> {
-	const results: CheckResult[] = [];
+): SemanticCheckRequest[] {
+	const requests: SemanticCheckRequest[] = [];
 	const baselineContext = gatherBaselineContext(context.repoRoot);
 
 	const contextFiles = [...new Set(context.claims.map((c) => c.file))];
@@ -335,7 +343,6 @@ export async function checkSemantic(
 				.split("\n")
 				.filter((l) => l.trim().length > 0 && !l.startsWith("#"));
 			if (textLines.length < 2) return false;
-			// Skip sections that are purely rules/instructions (not verifiable claims)
 			if (prescriptiveHeadings.test(s.heading)) return false;
 			return true;
 		});
@@ -346,7 +353,9 @@ export async function checkSemantic(
 			batches.push(substantiveSections.slice(i, i + 3));
 		}
 
-		for (const batch of batches) {
+		for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+			const batch = batches[batchIndex];
+
 			// Extract file references from this batch's sections and read them
 			const allRefs: string[] = [];
 			for (const section of batch) {
@@ -365,30 +374,76 @@ export async function checkSemantic(
 
 			const userPrompt = `# Repository baseline\n\n${baselineContext}\n\n# Relevant source files\n\n${targetedContext || "(no specific files referenced in this section)"}\n\n---\n\n# Sections from "${fileName}" to check (lines are 1-indexed from start of file)\n\n${sectionText}`;
 
-			try {
-				const response = await provider.chat(
-					[
-						{ role: "system", content: SYSTEM_PROMPT },
-						{ role: "user", content: userPrompt },
-					],
-					model,
-				);
-
-				const issues = parseAIResponse(response, fileName);
-				results.push(...issues);
-			} catch (err) {
-				results.push({
-					checker: "semantic",
-					code: "AI_CHECK_ERROR",
-					severity: "info",
-					file: fileName,
-					message: `AI check failed: ${err instanceof Error ? err.message : String(err)}`,
-				});
-			}
+			requests.push({
+				id: `${fileName}:batch-${batchIndex}`,
+				file: fileName,
+				messages: [
+					{ role: "system", content: SYSTEM_PROMPT },
+					{ role: "user", content: userPrompt },
+				],
+				metadata: {
+					startLine: Math.min(...batch.map((s) => s.startLine)),
+					endLine: Math.max(...batch.map((s) => s.endLine)),
+					headings: batch.map((s) => s.heading),
+				},
+			});
 		}
 	}
 
+	return requests;
+}
+
+/**
+ * Phase 2: Process LLM responses into check results.
+ * Takes the raw LLM responses (matched by id to the original requests)
+ * and parses them into structured CheckResult items.
+ */
+export function commitSemanticChecks(
+	responses: SemanticCheckResponse[],
+): CheckResult[] {
+	const results: CheckResult[] = [];
+
+	for (const response of responses) {
+		// Extract the file name from the request id (format: "fileName:batch-N")
+		const file = response.id.replace(/:batch-\d+$/, "");
+		const issues = parseAIResponse(response.content, file);
+		results.push(...issues);
+	}
+
 	return results;
+}
+
+/**
+ * Combined check: prepare prompts, call LLM, process results.
+ * This is the original API — now implemented using prepare/commit internally.
+ */
+export async function checkSemantic(
+	context: CheckerContext,
+	provider: AIProvider,
+	model?: string,
+): Promise<CheckResult[]> {
+	const requests = prepareSemanticChecks(context);
+	const responses: SemanticCheckResponse[] = [];
+
+	for (const request of requests) {
+		try {
+			const content = await provider.chat(request.messages, model);
+			responses.push({ id: request.id, content });
+		} catch (err) {
+			return [
+				...commitSemanticChecks(responses),
+				{
+					checker: "semantic",
+					code: "AI_CHECK_ERROR",
+					severity: "info",
+					file: request.file,
+					message: `AI check failed: ${err instanceof Error ? err.message : String(err)}`,
+				},
+			];
+		}
+	}
+
+	return commitSemanticChecks(responses);
 }
 
 function parseAIResponse(response: string, fileName: string): CheckResult[] {
@@ -400,7 +455,7 @@ function parseAIResponse(response: string, fileName: string): CheckResult[] {
 		if (!Array.isArray(issues)) return [];
 
 		// Filter out results where the model hedges, speculates, or contradicts itself
-		const _lowConfidencePatterns = [
+		const selfContradictPatterns = [
 			// Model confirms the claim is correct
 			/matches the claim/i,
 			/claim is accurate/i,

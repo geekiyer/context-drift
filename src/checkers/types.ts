@@ -73,3 +73,19 @@ export interface ScanResult {
 }
 
 export type Checker = (context: CheckerContext) => CheckResult[];
+
+export interface SemanticCheckRequest {
+	id: string;
+	file: string;
+	messages: { role: string; content: string }[];
+	metadata: {
+		startLine: number;
+		endLine: number;
+		headings: string[];
+	};
+}
+
+export interface SemanticCheckResponse {
+	id: string;
+	content: string;
+}
