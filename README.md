@@ -46,7 +46,19 @@ cat responses.json | context-drift commit
 
 context-drift ships an MCP server so AI agents can call `prepare` and `commit` as tools natively -- no shell piping needed.
 
-Add to your Claude Code settings (`~/.claude/settings.json`):
+#### Setup
+
+**Claude Code CLI** (recommended):
+
+```bash
+# If installed globally
+claude mcp add context-drift context-drift-mcp
+
+# Or without a global install
+claude mcp add context-drift -- npx -y -p @geekiyer/context-drift context-drift-mcp
+```
+
+**Manual config** (`~/.claude/settings.json` or project `.claude/settings.json`):
 
 ```json
 {
@@ -58,25 +70,32 @@ Add to your Claude Code settings (`~/.claude/settings.json`):
 }
 ```
 
-Or with npx (no global install):
+Verify it's connected:
 
-```json
-{
-  "mcpServers": {
-    "context-drift": {
-      "command": "npx",
-      "args": ["@geekiyer/context-drift-mcp"]
-    }
-  }
-}
+```bash
+claude mcp list
 ```
+
+#### Available tools
 
 | Tool | Input | Output |
 |------|-------|--------|
 | `prepare` | `path` (optional, defaults to cwd) | Array of requests with ready-to-send LLM messages |
 | `commit` | `responses` (array of `{id, content}`) | Array of structured drift results |
 
-The agent calls `prepare`, sends each request's `messages` to its own LLM, then calls `commit` with the responses.
+#### Example usage in Claude Code
+
+Once the MCP server is connected, ask Claude Code:
+
+```
+Check if this repo's context files have drifted using context-drift
+```
+
+The agent will:
+1. Call the `prepare` tool to get prompts for each section of your context files
+2. Send each prompt's `messages` through its own LLM
+3. Call the `commit` tool with the responses to get structured results
+4. Report any drift it finds
 
 ### Programmatic API
 
