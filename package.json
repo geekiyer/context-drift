@@ -1,6 +1,6 @@
 {
 	"name": "@geekiyer/context-drift",
-	"version": "0.2.2",
+	"version": "0.3.0",
 	"description": "Detect when AI context files drift out of sync with your codebase",
 	"type": "module",
 	"bin": {
@@ -10,7 +10,8 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"files": [
-		"dist"
+		"dist",
+		"skills"
 	],
 	"scripts": {
 		"build": "tsup",

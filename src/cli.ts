@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -156,6 +162,86 @@ program
 
 			const results = commitSemanticChecks(responses);
 			console.log(JSON.stringify(results, null, 2));
+		} catch (err) {
+			console.error("Error:", err instanceof Error ? err.message : err);
+			process.exit(2);
+		}
+	});
+
+program
+	.command("setup")
+	.description("Install the /drift-check skill and optional auto-check hook")
+	.option(
+		"--global",
+		"Install to ~/.claude/skills instead of project .claude/skills",
+	)
+	.option(
+		"--hook",
+		"Also install a session-start hook that warns when drift is detected",
+	)
+	.action((options: { global?: boolean; hook?: boolean }) => {
+		try {
+			const __filename = fileURLToPath(import.meta.url);
+			const __dirname = dirname(__filename);
+			const skillSource = join(
+				__dirname,
+				"..",
+				"skills",
+				"drift-check",
+				"SKILL.md",
+			);
+
+			if (!existsSync(skillSource)) {
+				console.error(
+					"Error: skill file not found in package. Try reinstalling @geekiyer/context-drift.",
+				);
+				process.exit(2);
+			}
+
+			// Determine target directory
+			const base = options.global
+				? join(process.env.HOME || "~", ".claude")
+				: resolve(".claude");
+			const skillDir = join(base, "skills", "drift-check");
+			mkdirSync(skillDir, { recursive: true });
+
+			const skillTarget = join(skillDir, "SKILL.md");
+			copyFileSync(skillSource, skillTarget);
+			const scope = options.global ? "global" : "project";
+			console.log(`Installed /drift-check skill to ${skillDir} (${scope})`);
+
+			// Install hook if requested
+			if (options.hook) {
+				const settingsPath = join(base, "settings.json");
+				let settings: Record<string, unknown> = {};
+				if (existsSync(settingsPath)) {
+					settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
+				}
+
+				const hookCommand =
+					"context-drift scan . --format json 2>/dev/null | node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const r=JSON.parse(d);const n=r.summary.errors+r.summary.warnings;if(n>0)console.log('Context drift detected (score: '+r.score+'/100, '+r.summary.errors+' errors, '+r.summary.warnings+' warnings). Run /drift-check to see details and fix.')}catch{}})\"";
+
+				const hooks = (settings.hooks || {}) as Record<string, unknown[]>;
+				const existing = (hooks.PreToolUse || []) as Record<string, string>[];
+
+				// Don't add duplicate
+				if (!existing.some((h) => h.command?.includes("context-drift scan"))) {
+					existing.push({ matcher: "", command: hookCommand });
+					hooks.PreToolUse = existing;
+					settings.hooks = hooks;
+					writeFileSync(settingsPath, JSON.stringify(settings, null, "\t"));
+					console.log(`Installed auto-check hook to ${settingsPath}`);
+					console.log(
+						"Claude Code will warn you when context files drift at the start of each session.",
+					);
+				} else {
+					console.log("Auto-check hook already installed.");
+				}
+			}
+
+			console.log(
+				"\nUsage: type /drift-check in Claude Code to check for drift.",
+			);
 		} catch (err) {
 			console.error("Error:", err instanceof Error ? err.message : err);
 			process.exit(2);
